@@ -3,3 +3,4 @@
 *.pyc
 dist
 *.xml
+build
