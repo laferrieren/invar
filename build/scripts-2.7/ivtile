@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 # Inspired by generate_tiles.py, part of the Open Street Map project:
 # http://svn.openstreetmap.org/applications/rendering/mapnik/generate_tiles.py
@@ -11,8 +11,8 @@ import invar
 DEFAULT_MIN_ZOOM = 9
 DEFAULT_MAX_ZOOM = 12
 
-DEFAULT_MAX_QUEUE_SIZE = 20000
-
+#DEFAULT_QUEUE_SIZE = 20000
+MAX_QUEUE_SIZE = 20000
 class IVTile(invar.InvarUtility):
     description = 'Render tiles for a given bounding box from a Mapnik2 XML configuration file.'
 
@@ -24,7 +24,7 @@ class IVTile(invar.InvarUtility):
         self.argparser.add_argument('min_zoom', help="Minimum zoom level to render", type=int, default=DEFAULT_MIN_ZOOM)
         self.argparser.add_argument('max_zoom', help="Maximum zoom level to render", type=int, default=DEFAULT_MAX_ZOOM)
         
-        self.argparser.add_argument('-q', '--queue_size', help="This is used to set the queue size for the multiprocessing libary.  A smaller queue with will allow for taking advantage of processors during the last group of tiles.", type=int, default=DEFAULT_MAX_QUEUE_SIZE)
+        #self.argparser.add_argument('-q', '--queue_size', help="This is used to set the queue size for the multiprocessing libary.  A smaller queue with will allow for taking advantage of processors during the last group of tiles.", type=int, default=MAX_QUEUE_SIZE)
         self.argparser.add_argument('-g', '--grid', action="store_true", help="Force grid JSON to be rendered alongside each tile. If -k or -f options are provided, this is inferred and need not be specified.")
         self.argparser.add_argument('-k', '--key', help="For grid rendering, the column in the associated dataset which is a unique ID for a feature. If not specified, will use mapnik default ('__id__')")
         self.argparser.add_argument('-f', '--fields', help="For grid rendering, a comma separated list of fields associated with each feature which will be included in grid JSON.")
@@ -39,7 +39,7 @@ class IVTile(invar.InvarUtility):
         ll1 = (self.args.lon_2, self.args.lat_2)
 
         tile_queues = []
-        tile_queue = multiprocessing.JoinableQueue(maxsize=self.args.queue_size) 
+        tile_queue = multiprocessing.JoinableQueue(maxsize=MAX_QUEUE_SIZE) 
         tile_count = 0
 
         for zoom in range(self.args.min_zoom, self.args.max_zoom + 1):
@@ -78,15 +78,15 @@ class IVTile(invar.InvarUtility):
 
                     # Because mulitprocessing.JoinableQueue has a fixed maxsize, we instantiate
                     # an array of such queues and fill them iteratively
-                    if tile_count != 0 and (tile_count % self.args.queue_size) == 0:
+                    if tile_count != 0 and (tile_count % MAX_QUEUE_SIZE) == 0:
                         tile_queues.append(tile_queue)
-                        tile_queue = multiprocessing.JoinableQueue(maxsize=self.args.queue_size)
+                        tile_queue = multiprocessing.JoinableQueue(maxsize=MAX_QUEUE_SIZE)
 
                     tile_queue.put(t)
                     tile_count += 1
 
             # Append first (or last) queue to list
-            if (tile_count % self.args.queue_size) != 0:
+            if (tile_count % MAX_QUEUE_SIZE) != 0:
                 tile_queues.append(tile_queue)
 
         print 'Using %i processes to render %i tiles' % (self.args.process_count, tile_count)
