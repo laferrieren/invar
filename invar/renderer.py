@@ -103,7 +103,7 @@ class Renderer(multiprocessing.Process):
 
                 if os.path.exists(filename):
                     #if they don't want progress bar than output the tiles being rendered
-                    if progress == False:
+                    if self.progress == False:
                         print 'Skipping %s' % (filename)
                     tile_queue.task_done()
 
