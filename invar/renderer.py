@@ -4,17 +4,22 @@ import json
 import multiprocessing
 import os
 import Queue
+import time
+import sys
 
 import mapnik
 
 import constants
 import projections
 
+
+
+
 class Renderer(multiprocessing.Process):
     """
     A Mapnik renderer process.
     """
-    def __init__(self, tile_queues, config, width=constants.DEFAULT_WIDTH, height=constants.DEFAULT_HEIGHT, filetype=constants.DEFAULT_FILE_TYPE, buffer_size=None, skip_existing=False):
+    def __init__(self, tile_queues, config, width=constants.DEFAULT_WIDTH, height=constants.DEFAULT_HEIGHT, filetype=constants.DEFAULT_FILE_TYPE, buffer_size=None, skip_existing=False, progress=False, tiles=0):
         multiprocessing.Process.__init__(self)
 
         self.config = config
@@ -24,6 +29,43 @@ class Renderer(multiprocessing.Process):
         self.buffer_size = buffer_size if buffer_size else max(width, height)
         self.filetype = filetype
         self.skip_existing = skip_existing
+        #used for generating eta and progress bars
+        self.progress = progress
+        self.tiles = tiles #note this isn't really tile size it is queue size. They are not the same value
+        self.start_time = int(time.time()) - 1
+
+    # update_progress() : Displays or updates a console progress bar
+    # Accepts a float between 0 and 1. Any int will be converted to a float.
+    # A value at 1 or bigger represents 100%
+    # Tiles in the below function doesn't refer to tiles it refers
+    # to the size returned by queue.qsize()
+    def update_progress(self):
+        #Find remaining tiles
+        remaining_tiles = 0
+        for tile_queue in self.tile_queues:
+            remaining_tiles += tile_queue.qsize()
+        #Calculate the percent of tiles left to render
+        progress_percent = (self.tiles - remaining_tiles) / float(self.tiles)
+        # Modify this to change the length of the progress bar
+        barLength = 50 
+        status = ""
+
+        if progress_percent >= 1:
+            progress_percent = 1
+            status = "Done...\r\n"
+        else: #we calculate the eta and the number of tiles per second if not done
+            time_now = int(time.time())
+            generated_tiles = self.tiles - remaining_tiles
+            tiles_per_second = generated_tiles / ( time_now - self.start_time)
+            seconds_left = remaining_tiles / tiles_per_second
+            status = str(seconds_left) + " seconds left to finish"
+
+        block = int(round(barLength*progress_percent))
+        text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), int(progress_percent*100), status)
+        sys.stdout.write(text)
+        sys.stdout.flush()
+
+
 
     def run(self):
         self.mapnik_map = mapnik.Map(self.width, self.height)
@@ -31,6 +73,9 @@ class Renderer(multiprocessing.Process):
 
         self.map_projection = mapnik.Projection(self.mapnik_map.srs)
         self.tile_projection = projections.GoogleProjection()  
+
+
+
 
         while True:
             tile_parameters = None
@@ -45,14 +90,21 @@ class Renderer(multiprocessing.Process):
 
             # Couldn't get tile parameters from any queue--all done
             if not tile_parameters:
+                print ""
                 return
+
+            #if progress bar is set, check the progress every 30 seconds
+            if self.progress and time.localtime().tm_sec % 30 == 0:
+                self.update_progress()
 
             # Skip rendering existing tiles
             if self.skip_existing:
                 filename = tile_parameters[0]
 
                 if os.path.exists(filename):
-                    print 'Skipping %s' % (filename)
+                    #if they don't want progress bar than output the tiles being rendered
+                    if progress == False:
+                        print 'Skipping %s' % (filename)
                     tile_queue.task_done()
 
                     continue
@@ -70,8 +122,8 @@ class TileRenderer(Renderer):
     """
     Renderer for tiles. 
     """
-    def __init__(self, tile_queues, config, width=constants.DEFAULT_WIDTH, height=constants.DEFAULT_HEIGHT, filetype=constants.DEFAULT_FILE_TYPE, buffer_size=None, skip_existing=False, **kwargs):
-        super(TileRenderer, self).__init__(tile_queues, config, width, height, filetype, buffer_size, skip_existing)
+    def __init__(self, tile_queues, config, width=constants.DEFAULT_WIDTH, height=constants.DEFAULT_HEIGHT, filetype=constants.DEFAULT_FILE_TYPE, buffer_size=None, skip_existing=False, progress=False, tiles=0, **kwargs):
+        super(TileRenderer, self).__init__(tile_queues, config, width, height, filetype, buffer_size, skip_existing, progress, tiles)
         self.grid = kwargs.get('grid', False)
         self.key =  kwargs.get('key', None)
         self.fields =  kwargs.get('fields', None)
@@ -80,7 +132,8 @@ class TileRenderer(Renderer):
         """
         Render a single tile to a given filename.
         """
-        print 'Rendering %s' % (filename)
+        if self.progress == False:
+            print 'Rendering %s' % (filename)
 
         # Calculate pixel positions of bottom-left & top-right
         half_width = self.width / 2
@@ -127,7 +180,9 @@ class TileRenderer(Renderer):
             # client code uses jsonp, so fake by wrapping in grid() callback
             base, ext = os.path.splitext(filename)
             grid_filename = '%s.grid.json' % base
-            print 'Rendering %s' % (grid_filename)
+            #if they don't want progress bar than output the tiles being rendered            
+            if self.progress == False:
+                print 'Rendering %s' % (grid_filename)
 
             with open(grid_filename,'wb') as f:
                 f.write('grid(' + json.dumps(grid_utf) + ')')
