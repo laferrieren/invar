@@ -49,8 +49,10 @@ class Renderer(multiprocessing.Process):
         # Modify this to change the length of the progress bar
         barLength = 50 
         status = ""
-
-        if progress_percent >= 1:
+        if progress <= 0:
+            progress = 0
+            status = "Halted...\r\n"
+        elif progress_percent >= 1:
             progress_percent = 1
             status = "Done...\r\n"
         else: #we calculate the eta and the number of tiles per second if not done
