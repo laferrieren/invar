@@ -10,6 +10,7 @@ eventlet.monkey_patch()
 
 import invar
 
+
 class IVS3(invar.InvarUtility):
     description = 'Upload a directory of images to S3 concurrently.'
 
@@ -66,7 +67,7 @@ class IVS3(invar.InvarUtility):
         bucket = conn.get_bucket(self.bucket)
 
         k = Key(bucket)
-        k.key = key_name 
+        k.key = key_name
 
         if self.upload_path:
             k.key = self.upload_path + k.key
@@ -83,5 +84,3 @@ class IVS3(invar.InvarUtility):
 if __name__ == "__main__":
     ivs3 = IVS3()
     ivs3.main()
-
-

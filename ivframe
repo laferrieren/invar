@@ -9,6 +9,7 @@ import invar
 
 DEFAULT_FRAME_ZOOM = 16
 
+
 class IVFrame(invar.InvarUtility):
     description = 'Render centered frames from a Mapnik2 XML configuration file. Accepts either a single latitude/longitude pair or the name of a CSV file containing appropriate columns.'
 

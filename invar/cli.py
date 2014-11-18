@@ -7,6 +7,7 @@ import mapnik
 
 import constants
 
+
 class InvarUtility(object):
     description = ''
     epilog = ''
@@ -68,4 +69,3 @@ class InvarUtility(object):
                 print value
 
         sys.excepthook = handler
-
