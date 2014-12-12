@@ -31,6 +31,7 @@ class Renderer(multiprocessing.Process):
         self.progress = progress
         self.tiles = tiles  # note this isn't really tile size it is queue size. They are not the same value
         self.start_time = int(time.time()) - 1
+        self.last_update = int(time.time())
 
     # update_progress() : Displays or updates a console progress bar
     # Accepts a float between 0 and 1. Any int will be converted to a float.
@@ -38,6 +39,7 @@ class Renderer(multiprocessing.Process):
     # Tiles in the below function doesn't refer to tiles it refers
     # to the size returned by queue.qsize()
     def update_progress(self):
+        self.last_update = time.time()
         #Find remaining tiles
         remaining_tiles = 0
         for tile_queue in self.tile_queues:
@@ -52,7 +54,7 @@ class Renderer(multiprocessing.Process):
             status = "Halted...\r\n"
         elif progress_percent >= 1:
             progress_percent = 1
-            status = "Done...\r\n"
+            status = "\nDone...\r\n"
         else:  # we calculate the eta and the number of tiles per second if not done
             time_now = int(time.time())
             generated_tiles = self.tiles - remaining_tiles
@@ -62,6 +64,8 @@ class Renderer(multiprocessing.Process):
 
         block = int(round(barLength*progress_percent))
         text = "\rPercent: [{0}] {1}% {2}".format("#"*block + "-"*(barLength-block), int(progress_percent*100), status)
+        if status == "\nDone...\r\n":
+            text = status
         sys.stdout.write(text)
         sys.stdout.flush()
 
@@ -85,11 +89,12 @@ class Renderer(multiprocessing.Process):
 
             # Couldn't get tile parameters from any queue--all done
             if not tile_parameters:
+                self.update_progress()
                 print ""
                 return
 
-            #if progress bar is set, check the progress every 30 seconds
-            if self.progress and time.localtime().tm_sec % 30 == 0:
+            #if progress bar is set, check the progress every 30 constants.DEFAULT_UPDATE_TIME
+            if self.progress and time.time() - self.last_update >= constants.DEFAULT_UPDATE_TIME:
                 self.update_progress()
 
             # Skip rendering existing tiles
