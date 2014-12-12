@@ -11,6 +11,7 @@ import invar
 DEFAULT_MIN_ZOOM = 9
 DEFAULT_MAX_ZOOM = 12
 
+# recomend under a 1000
 DEFAULT_MAX_QUEUE_SIZE = 20000
 
 
@@ -122,4 +123,3 @@ class IVTile(invar.InvarUtility):
 if __name__ == "__main__":
     ivtile = IVTile()
     ivtile.main()
-
